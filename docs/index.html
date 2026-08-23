@@ -31,11 +31,17 @@
   /* The four themes, on the ink palette, taken from `DriveTheme` in the app.
      A theme changes the accent, the ground the instruction band sits on, and the
      colour the route is drawn in — nothing else, which is why this is three
-     custom properties and not four stylesheets. */
-  :root[data-theme="pilot"]  { --accent: #4FD8E8; --band: #10333A; --route: #FF7A18; }
-  :root[data-theme="sport"]  { --accent: #E10600; --band: #1C3225; --route: #E10600; }
-  :root[data-theme="cruise"] { --accent: #E0A64B; --band: #2C3520; --route: #FF6A2A; }
-  :root[data-theme="blank"]  { --accent: #FFFFFF; --band: #232527; --route: #A0A0A0; }
+     custom properties and not four stylesheets.
+
+     Scoped to the themes section rather than to :root. Recolouring the whole page
+     from a control buried two thirds of the way down it meant the change mostly
+     happened where nobody was looking, and the hero band three screens up quietly
+     stopped matching the screenshot beside the buttons. Custom properties inherit,
+     so setting them on the section is enough for everything inside it. */
+  #themes[data-theme="pilot"]  { --accent: #4FD8E8; --band: #10333A; --route: #FF7A18; }
+  #themes[data-theme="sport"]  { --accent: #E10600; --band: #1C3225; --route: #E10600; }
+  #themes[data-theme="cruise"] { --accent: #E0A64B; --band: #2C3520; --route: #FF6A2A; }
+  #themes[data-theme="blank"]  { --accent: #FFFFFF; --band: #232527; --route: #A0A0A0; }
 
   :root {
     --sign_ground: #EDEDE7;    /* road signs never invert */
@@ -346,7 +352,7 @@
         <div class="figure_cell"><b>16:43</b><span>arrive</span></div>
       </div>
     </div>
-    <div class="shot"><img data-shot="driving" src="img/sport-driving.jpg" alt="the driving screen: the instruction band reading the distance to the next turn and the road it joins, a speed limit plate on the map, and the trip figures along the bottom"></div>
+    <div class="shot"><img src="img/sport-driving.jpg" alt="the driving screen: the instruction band reading the distance to the next turn and the road it joins, a speed limit plate on the map, and the trip figures along the bottom"></div>
   </div>
 </section>
 
@@ -370,7 +376,7 @@
         ferries, motorways and unpaved roads each have their own switch.
       </p>
     </div>
-    <div class="shot"><img data-shot="route" src="img/sport-route.jpg" alt="the route preview panel showing distance, time, climb and descent, with the constraint switches and the routing sliders below"></div>
+    <div class="shot"><img src="img/sport-route.jpg" alt="the route preview panel showing distance, time, climb and descent, with the constraint switches and the routing sliders below"></div>
   </div>
 </section>
 
@@ -394,11 +400,11 @@
         and west virginia. <a href="https://github.com/c-rk/tamepest-release/releases/tag/packs-v1">download them here</a>, or point the app at your own server.
       </p>
     </div>
-    <div class="shot"><img data-shot="packs" src="img/sport-packs.jpg" alt="the maps screen listing the installable regions with their sizes"></div>
+    <div class="shot"><img src="img/sport-packs.jpg" alt="the maps screen listing the installable regions with their sizes"></div>
   </div>
 </section>
 
-<section class="reveal">
+<section id="themes" class="reveal" data-theme="sport">
   <div class="row">
     <div class="words">
       <div class="kicker">themes</div>
@@ -411,7 +417,7 @@
         each one comes in ink and paper, and the palette can follow the sun or stay where you put
         it. the launcher icon changes with it.
       </p>
-      <p class="quiet">pick one and this page will follow it, screenshots and all.</p>
+      <p class="quiet">pick one — the screenshots below are the real thing, captured in each.</p>
       <div class="swatches" role="group" aria-label="theme">
         <button class="swatch" data-theme="pilot"><i></i>pilot</button>
         <button class="swatch" data-theme="sport" aria-current="true"><i></i>sport</button>
@@ -420,8 +426,8 @@
       </div>
     </div>
     <div class="pair">
-      <div class="shot"><img data-shot="map" src="img/sport-map.jpg" alt="the map screen with the heading tape across the top"></div>
-      <div class="shot"><img data-shot="settings" src="img/sport-settings.jpg" alt="the settings screen listing the four themes and the paper, ink and follow-the-sun palettes"></div>
+      <div class="shot"><img data-shot="driving" src="img/sport-driving.jpg" alt="the driving screen in the selected theme"></div>
+      <div class="shot"><img data-shot="map" src="img/sport-map.jpg" alt="the map screen in the selected theme"></div>
     </div>
   </div>
 </section>
@@ -442,7 +448,7 @@
       </p>
       <p class="note">exports as gpx, so a drive can leave the phone in a format anything will open.</p>
     </div>
-    <div class="shot"><img data-shot="drives" src="img/sport-drives.jpg" alt="the drives list showing every kept drive with its date, distance and time"></div>
+    <div class="shot"><img src="img/sport-drives.jpg" alt="the drives list showing every kept drive with its date, distance and time"></div>
   </div>
 </section>
 
@@ -461,7 +467,7 @@
         to avoid.
       </p>
     </div>
-    <div class="shot"><img data-shot="library" src="img/sport-library.jpg" alt="the library showing saved routes with their distances and a list of saved places"></div>
+    <div class="shot"><img src="img/sport-library.jpg" alt="the library showing saved routes with their distances and a list of saved places"></div>
   </div>
 </section>
 
@@ -500,45 +506,46 @@
 </main>
 
 <script>
-  // Theme switching: three custom properties and one screenshot swap per shot.
+  // Theme switching, scoped to the themes section.
   //
   // The screenshots are real captures of the app in each theme rather than a
-  // filter over one image, which is the only version of this worth building —
-  // a hue rotation would show a sport screenshot wearing cruise's colours and
-  // get the map style, the route colour and the puck all wrong.
+  // filter over one image, which is the only version of this worth building — a
+  // hue rotation would show a sport screenshot wearing cruise's colours and get
+  // the map style, the route colour and the puck all wrong.
   (function () {
-    const root = document.documentElement;
-    const buttons = Array.from(document.querySelectorAll(".swatch"));
-    const shots = Array.from(document.querySelectorAll("img[data-shot]"));
+    const section = document.getElementById("themes");
+    if (!section) return;
+    const buttons = Array.from(section.querySelectorAll(".swatch"));
+    const shots = Array.from(section.querySelectorAll("img[data-shot]"));
 
-    function apply(theme, animate) {
-      root.dataset.theme = theme;
+    const src = (theme, shot) => "img/" + theme + "-" + shot + ".jpg";
+
+    function apply(theme) {
+      section.dataset.theme = theme;
       for (const b of buttons) {
         if (b.dataset.theme === theme) b.setAttribute("aria-current", "true");
         else b.removeAttribute("aria-current");
       }
-      for (const img of shots) {
-        const next = "img/" + theme + "-" + img.dataset.shot + ".jpg";
-        if (img.getAttribute("src") === next) continue;
-        if (!animate) { img.src = next; continue; }
-        // Load first, swap second: setting src straight away shows the frame
-        // empty for as long as the file takes to arrive.
-        const pre = new Image();
-        pre.onload = () => { img.src = next; img.classList.remove("swapping"); };
-        pre.onerror = () => { img.classList.remove("swapping"); };
-        img.classList.add("swapping");
-        pre.src = next;
-      }
+      for (const img of shots) img.src = src(theme, img.dataset.shot);
       try { localStorage.setItem("tamepest-theme", theme); } catch (e) { /* private mode */ }
     }
 
-    for (const b of buttons) {
-      b.addEventListener("click", () => apply(b.dataset.theme, true));
-    }
+    // Fetch the other three sets once, in the background, so a click swaps an
+    // image the browser already holds instead of showing an empty frame for as
+    // long as a 120 kB jpeg takes to arrive. Deliberately not a preload dance
+    // around each swap: doing it per click made the swap depend on a load event
+    // firing, and an image already in cache is the case most likely to surprise.
+    window.addEventListener("load", () => {
+      for (const theme of ["pilot", "sport", "cruise", "blank"]) {
+        for (const img of shots) new Image().src = src(theme, img.dataset.shot);
+      }
+    });
+
+    for (const b of buttons) b.addEventListener("click", () => apply(b.dataset.theme));
 
     let saved = null;
     try { saved = localStorage.getItem("tamepest-theme"); } catch (e) { /* private mode */ }
-    apply(saved && buttons.some((b) => b.dataset.theme === saved) ? saved : "sport", false);
+    if (saved && buttons.some((b) => b.dataset.theme === saved)) apply(saved);
   })();
 
   const seen = new IntersectionObserver((entries) => {
