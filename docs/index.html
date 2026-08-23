@@ -18,10 +18,26 @@
     --ink: #F2F2F0;
     --ink_muted: #8A8A88;
     --rule: #2C2C2E;
-    --accent: #E10600;         /* sport */
-    --band: #1C3225;           /* the instruction band */
     --band_ink: #F1F4EF;
     --band_muted: #A7B2A8;
+
+    /* Sport is the default, so its three theme colours are the ones on :root.
+       The blocks below only override what a theme actually changes. */
+    --accent: #E10600;
+    --band: #1C3225;
+    --route: #E10600;
+  }
+
+  /* The four themes, on the ink palette, taken from `DriveTheme` in the app.
+     A theme changes the accent, the ground the instruction band sits on, and the
+     colour the route is drawn in — nothing else, which is why this is three
+     custom properties and not four stylesheets. */
+  :root[data-theme="pilot"]  { --accent: #4FD8E8; --band: #10333A; --route: #FF7A18; }
+  :root[data-theme="sport"]  { --accent: #E10600; --band: #1C3225; --route: #E10600; }
+  :root[data-theme="cruise"] { --accent: #E0A64B; --band: #2C3520; --route: #FF6A2A; }
+  :root[data-theme="blank"]  { --accent: #FFFFFF; --band: #232527; --route: #A0A0A0; }
+
+  :root {
     --sign_ground: #EDEDE7;    /* road signs never invert */
     --sign_ink: #15171A;
     --sign_warn: #C9A24A;
@@ -203,8 +219,50 @@
   }
 
   .swatches { display: flex; flex-wrap: wrap; gap: var(--sm); margin-top: var(--lg); }
-  .swatch { flex: 1 1 96px; border: 1px solid var(--rule); padding: var(--sm) var(--md); font-size: 13px; color: var(--ink_muted); }
+  .swatch {
+    flex: 1 1 96px;
+    border: 1px solid var(--rule);
+    background: none;
+    padding: var(--sm) var(--md);
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink_muted);
+    text-align: left;
+    text-transform: lowercase;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  .swatch:hover { color: var(--ink); }
+  .swatch[aria-current="true"] { border-color: var(--ink_muted); color: var(--ink); }
   .swatch i { display: block; height: 5px; margin-bottom: var(--sm); font-style: normal; }
+  /* Each swatch shows its own theme's accent, not the page's current one — the
+     point of the row is to compare four, so they cannot all follow the choice. */
+  .swatch[data-theme="pilot"]  i { background: #4FD8E8; }
+  .swatch[data-theme="sport"]  i { background: #E10600; }
+  .swatch[data-theme="cruise"] i { background: #E0A64B; }
+  .swatch[data-theme="blank"]  i { background: #A0A0A0; }
+
+  /* Screenshots cross-fade rather than cut, so switching theme reads as one
+     screen changing clothes instead of four images flashing. */
+  .shot img { transition: opacity 0.18s ease; }
+  .shot img.swapping { opacity: 0; }
+
+  /* The car display, which does not exist yet and is not going to be mocked up
+     as though it does. */
+  .soon {
+    border: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--md);
+    min-height: 260px;
+    color: var(--rule);
+  }
+  .soon svg { width: 150px; height: 90px; }
+  .soon span { font-size: 13px; letter-spacing: 1.4px; color: var(--ink_muted); }
+
+  .note a { color: var(--accent); }
 
   footer {
     border-top: 1px solid var(--rule);
@@ -288,7 +346,7 @@
         <div class="figure_cell"><b>16:43</b><span>arrive</span></div>
       </div>
     </div>
-    <div class="shot"><img src="img/driving.jpg" alt="the driving screen: a green instruction band reading 2.9 miles, turn right onto auburn avenue, a speed limit plate on the map, and the trip figures along the bottom"></div>
+    <div class="shot"><img data-shot="driving" src="img/sport-driving.jpg" alt="the driving screen: a green instruction band reading 2.9 miles, turn right onto auburn avenue, a speed limit plate on the map, and the trip figures along the bottom"></div>
   </div>
 </section>
 
@@ -312,7 +370,7 @@
         ferries, motorways and unpaved roads each have their own switch.
       </p>
     </div>
-    <div class="shot"><img src="img/route.jpg" alt="the route preview panel showing distance, time, climb and descent, with the constraint switches and the routing sliders below"></div>
+    <div class="shot"><img data-shot="route" src="img/sport-route.jpg" alt="the route preview panel showing distance, time, climb and descent, with the constraint switches and the routing sliders below"></div>
   </div>
 </section>
 
@@ -323,35 +381,20 @@
       <h2>a state at a time, everything included</h2>
       <p>
         a region pack is the whole thing: vector tiles, the routing graph and the place index,
-        configured the moment it lands. maryland is 321 mb. house numbers, for searching by street
-        address, are a separate 44 mb you can add or drop.
+        configured the moment it lands. maryland is 350 mb. house numbers, for searching by street
+        address, are a separate 45 mb you can add or drop.
       </p>
       <p>
         nothing here is a cache of something online. there is no online. the router searches every
         installed pack as one graph, so crossing a state line is ordinary rather than the end of
         the map.
       </p>
-    </div>
-    <div class="shot"><img src="img/packs.jpg" alt="the maps screen listing delaware, district of columbia, maryland, new jersey and pennsylvania with their sizes"></div>
-  </div>
-</section>
-
-<section class="reveal">
-  <div class="row flip">
-    <div class="words">
-      <div class="kicker">search</div>
-      <h2>the map answers the list</h2>
-      <p>
-        results are numbered and the pins carry the same numbers, so the answer to "which one is
-        that" is on the map rather than one tap further in. distance from where you are, on every
-        row.
-      </p>
-      <p>
-        places, street addresses and raw coordinates all go in the same box, and all of it is
-        indexed on the phone.
+      <p class="note">
+        seven states are built today — delaware, dc, maryland, new jersey, pennsylvania, virginia
+        and west virginia. <a href="https://github.com/c-rk/tamepest-release/releases/tag/packs-v1">download them here</a>, or point the app at your own server.
       </p>
     </div>
-    <div class="shot"><img src="img/search.jpg" alt="a search for annapolis, with four numbered results and four numbered pins on the map above them"></div>
+    <div class="shot"><img data-shot="packs" src="img/sport-packs.jpg" alt="the maps screen listing delaware, district of columbia, maryland, new jersey and pennsylvania with their sizes"></div>
   </div>
 </section>
 
@@ -368,16 +411,17 @@
         each one comes in ink and paper, and the palette can follow the sun or stay where you put
         it. the launcher icon changes with it.
       </p>
-      <div class="swatches">
-        <div class="swatch"><i style="background:#4FD8E8"></i>pilot</div>
-        <div class="swatch"><i style="background:#E10600"></i>sport</div>
-        <div class="swatch"><i style="background:#E0A64B"></i>cruise</div>
-        <div class="swatch"><i style="background:#A0A0A0"></i>blank</div>
+      <p class="quiet">pick one and this page will follow it, screenshots and all.</p>
+      <div class="swatches" role="group" aria-label="theme">
+        <button class="swatch" data-theme="pilot"><i></i>pilot</button>
+        <button class="swatch" data-theme="sport" aria-current="true"><i></i>sport</button>
+        <button class="swatch" data-theme="cruise"><i></i>cruise</button>
+        <button class="swatch" data-theme="blank"><i></i>blank</button>
       </div>
     </div>
     <div class="pair">
-      <div class="shot"><img src="img/paper.jpg" alt="the map in the cruise theme on the paper palette, warm cream with an amber heading tape"></div>
-      <div class="shot"><img src="img/settings.jpg" alt="the settings screen listing the four themes and the paper, ink and follow-the-sun palettes"></div>
+      <div class="shot"><img data-shot="map" src="img/sport-map.jpg" alt="the map screen with the heading tape across the top"></div>
+      <div class="shot"><img data-shot="settings" src="img/sport-settings.jpg" alt="the settings screen listing the four themes and the paper, ink and follow-the-sun palettes"></div>
     </div>
   </div>
 </section>
@@ -398,10 +442,7 @@
       </p>
       <p class="note">exports as gpx, so a drive can leave the phone in a format anything will open.</p>
     </div>
-    <div class="pair">
-      <div class="shot"><img src="img/drives.jpg" alt="the drives list showing eight kept drives with dates, distances and times"></div>
-      <div class="shot"><img src="img/drive-card.jpg" alt="a completed drive card showing distance, time taken, planned time and the difference against plan"></div>
-    </div>
+    <div class="shot"><img data-shot="drives" src="img/sport-drives.jpg" alt="the drives list showing every kept drive with its date, distance and time"></div>
   </div>
 </section>
 
@@ -420,7 +461,7 @@
         to avoid.
       </p>
     </div>
-    <div class="shot"><img src="img/library.jpg" alt="the library showing saved routes with their distances and a list of saved places"></div>
+    <div class="shot"><img data-shot="library" src="img/sport-library.jpg" alt="the library showing saved routes with their distances and a list of saved places"></div>
   </div>
 </section>
 
@@ -428,19 +469,26 @@
   <div class="row flip">
     <div class="words">
       <div class="kicker">android auto</div>
-      <h2>the car screen is ours, not the host's</h2>
+      <h2>on the road soon</h2>
       <p>
-        tamepest draws its own instruction band, its own map surface and its own figures strip on
-        the car display, rather than handing the host a card to render in its idiom in a corner of
-        its choosing.
+        the car display is being built the same way as the phone's: tamepest drawing its own
+        instruction band, its own map surface and its own figures strip, rather than handing the
+        host a card to render in its idiom in a corner of its choosing.
       </p>
       <p>
-        the arrows come from one set of geometry shared with the phone, so the two displays cannot
-        drift into drawing different arrows for the same instruction.
+        the arrows already come from one set of geometry shared between the two, so when it lands
+        the phone and the car cannot drift into drawing different arrows for the same instruction.
       </p>
       <div class="plate"><em>limit</em><b>55</b></div>
     </div>
-    <div class="shot"><img src="img/map.jpg" alt="the map screen with the heading tape across the top and the loop-from-here row above the search box"></div>
+    <div class="soon">
+      <svg viewBox="0 0 120 72" aria-hidden="true">
+        <rect x="1" y="1" width="118" height="70" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <path d="M34 50 L34 30 L74 30" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="square"/>
+        <path d="M68 20 L90 30 L68 40 Z" fill="currentColor"/>
+      </svg>
+      <span>not shipped yet</span>
+    </div>
   </div>
 </section>
 
@@ -452,6 +500,47 @@
 </main>
 
 <script>
+  // Theme switching: three custom properties and one screenshot swap per shot.
+  //
+  // The screenshots are real captures of the app in each theme rather than a
+  // filter over one image, which is the only version of this worth building —
+  // a hue rotation would show a sport screenshot wearing cruise's colours and
+  // get the map style, the route colour and the puck all wrong.
+  (function () {
+    const root = document.documentElement;
+    const buttons = Array.from(document.querySelectorAll(".swatch"));
+    const shots = Array.from(document.querySelectorAll("img[data-shot]"));
+
+    function apply(theme, animate) {
+      root.dataset.theme = theme;
+      for (const b of buttons) {
+        if (b.dataset.theme === theme) b.setAttribute("aria-current", "true");
+        else b.removeAttribute("aria-current");
+      }
+      for (const img of shots) {
+        const next = "img/" + theme + "-" + img.dataset.shot + ".jpg";
+        if (img.getAttribute("src") === next) continue;
+        if (!animate) { img.src = next; continue; }
+        // Load first, swap second: setting src straight away shows the frame
+        // empty for as long as the file takes to arrive.
+        const pre = new Image();
+        pre.onload = () => { img.src = next; img.classList.remove("swapping"); };
+        pre.onerror = () => { img.classList.remove("swapping"); };
+        img.classList.add("swapping");
+        pre.src = next;
+      }
+      try { localStorage.setItem("tamepest-theme", theme); } catch (e) { /* private mode */ }
+    }
+
+    for (const b of buttons) {
+      b.addEventListener("click", () => apply(b.dataset.theme, true));
+    }
+
+    let saved = null;
+    try { saved = localStorage.getItem("tamepest-theme"); } catch (e) { /* private mode */ }
+    apply(saved && buttons.some((b) => b.dataset.theme === saved) ? saved : "sport", false);
+  })();
+
   const seen = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       if (entry.isIntersecting) {
