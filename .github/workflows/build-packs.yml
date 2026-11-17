@@ -102,13 +102,13 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
           echo "sdk.dir=$ANDROID_HOME" > src/local.properties
           gh release download -R onthegomap/planetiler -p planetiler.jar -D "$PACKS"
-          curl -sSfL -o "$PACKS/graphhopper-web-9.1.jar" \
+          curl -sSfL --retry 8 --retry-all-errors --retry-delay 20 -o "$PACKS/graphhopper-web-9.1.jar" \
             https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/9.1/graphhopper-web-9.1.jar
 
       - name: osm extract
         run: |
           mkdir -p "$PACKS/data/sources"
-          curl -sSfL -o "$PACKS/data/sources/$REGION.osm.pbf" \
+          curl -sSfL --retry 8 --retry-all-errors --retry-delay 20 -o "$PACKS/data/sources/$REGION.osm.pbf" \
             "https://download.geofabrik.de/north-america/us/$REGION-latest.osm.pbf"
           python3 - "$PACKS/data/sources/$REGION.osm.pbf" > bbox.txt <<'PY'
           import sys, osmium
