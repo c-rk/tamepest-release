@@ -108,8 +108,8 @@ jobs:
       - name: osm extract
         run: |
           mkdir -p "$PACKS/data/sources"
-          curl -sSfL --retry 8 --retry-all-errors --retry-delay 20 -o "$PACKS/data/sources/$REGION.osm.pbf" \
-            "https://download.geofabrik.de/north-america/us/$REGION-latest.osm.pbf"
+          curl -sSfL --retry 12 --retry-all-errors --retry-delay 60 --retry-max-time 1800 \
+            -o "$PACKS/data/sources/$REGION.osm.pbf" "https://download.geofabrik.de/north-america/us/$REGION-latest.osm.pbf"
           python3 - "$PACKS/data/sources/$REGION.osm.pbf" > bbox.txt <<'PY'
           import sys, osmium
           b = osmium.io.Reader(sys.argv[1], osmium.osm.osm_entity_bits.NOTHING).header().box()
@@ -137,7 +137,7 @@ jobs:
 
       - name: build
         working-directory: src/packs
-        run: pwsh ./build-region.ps1 -Region "$REGION"
+        run: pwsh ./build-region.ps1 -Region "$REGION" || pwsh ./build-region.ps1 -Region "$REGION"
 
       - name: upload
         env:
