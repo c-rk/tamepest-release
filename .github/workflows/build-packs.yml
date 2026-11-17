@@ -1,0 +1,148 @@
+name: build packs
+
+# Builds region packs on GitHub's runners and attaches them to a release of this repo,
+# where the app downloads them. One job per state; each job's disk is thrown away after.
+on:
+  workflow_dispatch:
+    inputs:
+      regions:
+        description: "new (states not yet in the release), all, or ids such as delaware,ohio"
+        default: new
+      tag:
+        description: release to upload to
+        default: packs-v1
+      source_ref:
+        description: branch of c-rk/tamepest to build with
+        default: convoy
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      regions: ${{ steps.plan.outputs.regions }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANT: ${{ inputs.regions }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, subprocess
+          states = dict(x.split(":") for x in """alabama:AL alaska:AK arizona:AZ arkansas:AR california:CA
+          colorado:CO connecticut:CT delaware:DE district-of-columbia:DC florida:FL georgia:GA hawaii:HI
+          idaho:ID illinois:IL indiana:IN iowa:IA kansas:KS kentucky:KY louisiana:LA maine:ME maryland:MD
+          massachusetts:MA michigan:MI minnesota:MN mississippi:MS missouri:MO montana:MT nebraska:NE
+          nevada:NV new-hampshire:NH new-jersey:NJ new-mexico:NM new-york:NY north-carolina:NC
+          north-dakota:ND ohio:OH oklahoma:OK oregon:OR pennsylvania:PA rhode-island:RI
+          south-carolina:SC south-dakota:SD tennessee:TN texas:TX utah:UT vermont:VT virginia:VA
+          washington:WA west-virginia:WV wisconsin:WI wyoming:WY""".split())
+          want = os.environ["WANT"].strip()
+          if want == "all":
+              ids = list(states)
+          elif want == "new":
+              out = subprocess.run(["gh", "release", "view", os.environ["TAG"], "-R", os.environ["GITHUB_REPOSITORY"],
+                                    "--json", "assets"], capture_output=True, text=True)
+              have = {a["name"].split("-tiles.mbtiles")[0] for a in json.loads(out.stdout or '{"assets":[]}')["assets"]
+                      if a["name"].endswith("-tiles.mbtiles")}
+              ids = [s for s in states if s not in have]
+          else:
+              ids = [s.strip() for s in want.split(",") if s.strip()]
+          unknown = [s for s in ids if s not in states]
+          if unknown:
+              raise SystemExit(f"unknown regions: {unknown}")
+          print("regions=" + json.dumps([{"id": s, "abbr": states[s]} for s in ids]))
+          PY
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.regions != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        region: ${{ fromJson(needs.plan.outputs.regions) }}
+    env:
+      REGION: ${{ matrix.region.id }}
+      ABBR: ${{ matrix.region.abbr }}
+      TAMEPEST_JAVA_HEAP: 12g
+      PACKS: src/packs
+    steps:
+      - name: free disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost "$AGENT_TOOLSDIRECTORY/CodeQL"
+          df -h /
+
+      - uses: actions/checkout@v4
+        with:
+          repository: c-rk/tamepest
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.TAMEPEST_SOURCE_TOKEN }}
+          path: src
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pip install --quiet duckdb osmium
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > src/local.properties
+          gh release download -R onthegomap/planetiler -p planetiler.jar -D "$PACKS"
+          curl -sSfL -o "$PACKS/graphhopper-web-9.1.jar" \
+            https://repo1.maven.org/maven2/com/graphhopper/graphhopper-web/9.1/graphhopper-web-9.1.jar
+
+      - name: osm extract
+        run: |
+          mkdir -p "$PACKS/data/sources"
+          curl -sSfL -o "$PACKS/data/sources/$REGION.osm.pbf" \
+            "https://download.geofabrik.de/north-america/us/$REGION-latest.osm.pbf"
+          python3 - "$PACKS/data/sources/$REGION.osm.pbf" > bbox.txt <<'PY'
+          import sys, osmium
+          b = osmium.io.Reader(sys.argv[1], osmium.osm.osm_entity_bits.NOTHING).header().box()
+          print(b.bottom_left.lat, b.bottom_left.lon, b.top_right.lat, b.top_right.lon)
+          PY
+          cat bbox.txt
+
+      - name: speed limits (HPMS)
+        continue-on-error: true
+        run: |
+          mkdir -p "$PACKS/data/conflate"
+          python "$PACKS/tools/fetch_hpms.py" "$ABBR" "$PACKS/data/conflate/$REGION-hpms.tsv"
+
+      - name: overture places and addresses
+        continue-on-error: true
+        run: |
+          mkdir -p "$PACKS/data/overture"
+          read MINLAT MINLON MAXLAT MAXLON < bbox.txt
+          python "$PACKS/tools/overture_places.py" fetch "$PACKS/data/overture/places.parquet" $MINLAT $MINLON $MAXLAT $MAXLON
+          python "$PACKS/tools/overture_addresses.py" fetch "$PACKS/data/overture/addresses.parquet" $MINLAT $MINLON $MAXLAT $MAXLON
+
+      - name: build
+        working-directory: src/packs
+        run: pwsh ./build-region.ps1 -Region "$REGION"
+
+      - name: upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          out=upload && mkdir -p $out
+          for f in "$PACKS/served/$REGION"/*; do cp "$f" "$out/$REGION-$(basename "$f")"; done
+          python3 -c "import json,sys; r=[x for x in json.load(open(sys.argv[1]))['regions'] if x['id']==sys.argv[2]]; json.dump(r[0], open(sys.argv[3],'w'), indent=2)" \
+            src/app/src/main/assets/regions/catalog.json "$REGION" "$out/$REGION-catalog.json"
+          ls -la $out
+          gh release upload "$TAG" $out/* --clobber -R "$GITHUB_REPOSITORY"
