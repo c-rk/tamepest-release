@@ -145,4 +145,6 @@ jobs:
           python3 -c "import json,sys; r=[x for x in json.load(open(sys.argv[1]))['regions'] if x['id']==sys.argv[2]]; json.dump(r[0], open(sys.argv[3],'w'), indent=2)" \
             src/app/src/main/assets/regions/catalog.json "$REGION" "$out/$REGION-catalog.json"
           ls -la $out
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1 ||
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --prerelease -t "region packs $TAG" -n "Built by the build packs workflow." || true
           gh release upload "$TAG" $out/* --clobber -R "$GITHUB_REPOSITORY"
