@@ -14,6 +14,10 @@ on:
       source_ref:
         description: branch of c-rk/tamepest to build with
         default: convoy
+      graph_only:
+        description: rebuild and upload only graph.tmpg, leaving tiles, places, terrain and addresses as they are
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -124,6 +128,7 @@ jobs:
           python "$PACKS/tools/fetch_hpms.py" "$ABBR" "$PACKS/data/conflate/$REGION-hpms.tsv"
 
       - name: overture places and addresses
+        if: ${{ !inputs.graph_only }}
         continue-on-error: true
         run: |
           mkdir -p "$PACKS/data/overture"
@@ -145,15 +150,24 @@ jobs:
 
       - name: build
         working-directory: src/packs
-        run: pwsh ./build-region.ps1 -Region "$REGION" || pwsh ./build-region.ps1 -Region "$REGION"
+        env:
+          GRAPH_ONLY: ${{ inputs.graph_only }}
+        run: |
+          args=(-Region "$REGION")
+          [ "$GRAPH_ONLY" = true ] && args+=(-SkipTiles -SkipPlaces -SkipTerrain -SkipAddresses)
+          pwsh ./build-region.ps1 "${args[@]}" || pwsh ./build-region.ps1 "${args[@]}"
 
       - name: upload
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
+          GRAPH_ONLY: ${{ inputs.graph_only }}
         run: |
           out=upload && mkdir -p $out
-          for f in "$PACKS/served/$REGION"/*; do cp "$f" "$out/$REGION-$(basename "$f")"; done
+          for f in "$PACKS/served/$REGION"/*; do
+            [ "$GRAPH_ONLY" = true ] && [ "$(basename "$f")" != graph.tmpg ] && continue
+            cp "$f" "$out/$REGION-$(basename "$f")"
+          done
           python3 -c "import json,sys; r=[x for x in json.load(open(sys.argv[1]))['regions'] if x['id']==sys.argv[2]]; json.dump(r[0], open(sys.argv[3],'w'), indent=2)" \
             src/app/src/main/assets/regions/catalog.json "$REGION" "$out/$REGION-catalog.json"
           ls -la $out
