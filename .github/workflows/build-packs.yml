@@ -135,6 +135,14 @@ jobs:
           python "$PACKS/tools/overture_places.py" fetch "$PACKS/data/overture/places.parquet" $MINLAT $MINLON $MAXLAT $MAXLON --release "$RELEASE"
           python "$PACKS/tools/overture_addresses.py" fetch "$PACKS/data/overture/addresses.parquet" $MINLAT $MINLON $MAXLAT $MAXLON --release "$RELEASE"
 
+      - name: byways
+        run: |
+          # Only MD, VA and WV publish byways; their lines were lifted from the desktop-built packs.
+          mkdir -p "$PACKS/data/conflate"
+          curl -sSfL --retry 4 -o "$PACKS/data/conflate/$REGION-byways.tsv" \
+            "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/byways/$REGION-byways.tsv" \
+            || rm -f "$PACKS/data/conflate/$REGION-byways.tsv"
+
       - name: build
         working-directory: src/packs
         run: pwsh ./build-region.ps1 -Region "$REGION" || pwsh ./build-region.ps1 -Region "$REGION"
